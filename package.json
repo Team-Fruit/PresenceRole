@@ -1,0 +1,18 @@
+{
+  "name": "presencerole",
+  "version": "0.1.0",
+  "description": "プレイ中のゲームに応じて役職をつけます",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "author": "TeamFruit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Team-Fruit/PresenceRole.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^11.4.2"
+  }
+}
