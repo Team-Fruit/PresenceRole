@@ -10,56 +10,61 @@ const DiscordSettings = require('./settings.js');
 const client = new Discord.Client();
 
 // メンバーがゲームをプレイしているか判定します
-function getPlayingGame(member) {
-    let game = member.presence.game;
-    if (game !== null) {
-        if (game.applicationID in DiscordSettings.games)
-            return [game.applicationID, DiscordSettings.games[game.applicationID]];
+function getPlayingGame(member, func) {
+    let servergames = DiscordSettings.games[member.guild.id];
+    if (servergames !== undefined) {
+        let game = member.presence.game;
+        for (let servergame in servergames) {
+            let serverrole = servergames[servergame];
+            let hasGame = game !== null && servergame === game.applicationID;
+            let hasRole = member.roles.has(serverrole);
+            func(hasGame, hasRole, servergame, serverrole);
+        }
     }
-    return [];
 }
 
 // メンバーの役職を更新します
 function updateMember(member) {
-    let [playingGame, playingRole] = getPlayingGame(member);
-    let hasRole = member.roles.has(playingRole);
+    getPlayingGame(member, (hasGame, hasRole, playingGame, playingRole) => {
+        // 役職なしでゲームを起動していたら
+        if (!hasRole && hasGame) {
+            // 役職をつける
+            member.addRole(playingRole);
 
-    // 役職なしでゲームを起動していたら
-    if (!hasRole && playingGame !== undefined) {
-        // 役職をつける
-        member.addRole(playingRole);
-
-        console.log("added role %s", member.displayName);
-    }
-    // 役職ありでゲームを起動していなかったら
-    else if (hasRole && playingGame === undefined) {
-        // 役職を外す
-        member.removeRole(playingRole);
-
-        console.log("removed role %s", member.displayName);
-    }
-}
-
-// メンバーの役職を削除します
-function removeRole(member) {
-    for (let playingGame in DiscordSettings.games) {
-        let playingRole = DiscordSettings.games[playingGame];
-        let hasRole = member.roles.has(playingRole);
-
-        // 役職あったら
-        if (hasRole) {
+            console.log("added role %s", member.displayName);
+        }
+        // 役職ありでゲームを起動していなかったら
+        else if (hasRole && !hasGame) {
             // 役職を外す
             member.removeRole(playingRole);
 
             console.log("removed role %s", member.displayName);
         }
-    }
+    });
+}
+
+// メンバーの役職を削除します
+function removeRole(member) {
+    let servergames = DiscordSettings.games[member.guild.id];
+    if (servergames !== undefined)
+        for (let playingGame in servergames) {
+            let playingRole = servergames[playingGame];
+            let hasRole = member.roles.has(playingRole);
+
+            // 役職あったら
+            if (hasRole) {
+                // 役職を外す
+                member.removeRole(playingRole);
+
+                console.log("removed role %s", member.displayName);
+            }
+        }
 }
 
 // 全員
 function doAllMember(func) {
     for (let [serverid, server] of client.guilds) {
-        if (DiscordSettings.servers.includes(serverid)) {
+        if (serverid in DiscordSettings.games) {
             for (let [memberid, member] of server.members) {
                 func(member);
             }
@@ -79,7 +84,7 @@ client.on('ready', () => {
 });
 
 // RichPresenceが更新されたら役職を変更する
-client.on('presence', (oldMember, newMember) => {
+client.on('presenceUpdate', (oldMember, newMember) => {
     updateMember(newMember);
 });
 
